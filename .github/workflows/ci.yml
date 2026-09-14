@@ -1,0 +1,136 @@
+name: "PlatformIO CI"
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  format:
+    name: "Check Formatting"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: "Checkout code 🛎️"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Setup Python 🐍"
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: "Install Clang-Format 🔧"
+        run: pip install -r requirements.txt
+
+      - name: "Check Code Formatting (Clang-Format) 🎨"
+        run: |
+          find src include lib -type f \
+            \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
+            -exec clang-format --dry-run --Werror {} +
+
+  analysis:
+    name: "Static Analysis"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: "Checkout code 🛎️"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Setup Python 🐍"
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: "Cache PlatformIO 📦"
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pio-
+
+      - name: "Install Dependencies 🔧"
+        run: pip install -r requirements.txt
+
+      - name: "Run Static Analysis (Clang-Tidy) 🔍"
+        run: pio check --fail-on-defect=low
+
+  build:
+    name: "Build Arduino Uno Firmware"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    needs: [format, analysis]
+
+    steps:
+      - name: "Checkout code 🛎️"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Setup Python 🐍"
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: "Cache PlatformIO 📦"
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pio-
+
+      - name: "Install Dependencies 🔧"
+        run: pip install -r requirements.txt
+
+      - name: "Build Arduino Uno Firmware 🔨"
+        run: pio run -e uno
+
+      - name: "Generate Firmware Integrity Checksums 🔐"
+        run: |
+          cd .pio/build/uno
+          sha256sum firmware.hex firmware.elf > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: "Upload Firmware Artifacts 📤"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: arduino-uno-firmware
+          path: |
+            .pio/build/uno/firmware.hex
+            .pio/build/uno/firmware.elf
+            .pio/build/uno/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
