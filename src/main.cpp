@@ -26,7 +26,6 @@
 
 #include <Arduino.h>
 
-namespace {
 // Mapeamento de pinos do hardware
 constexpr uint8_t pin_ultrasonic_trigger = 2;    // Disparo do sensor ultrassônico (Trigger)
 constexpr uint8_t pin_ultrasonic_echo = 3;       // Entrada digital: eco do sensor ultrassônico (Echo)
@@ -57,20 +56,18 @@ constexpr unsigned int buzzer_alarm_frequency_hz = 1200;  // Frequência acústi
 constexpr uint8_t telemetry_decimals = 1;                 // Precisão decimal da telemetria de distância
 
 // Estados operacionais da máquina de navegação autônoma
-enum class NavigationState : uint8_t {
-  Free,      // Pista desobstruída: deslocamento retilíneo para frente
-  Turn,      // Obstáculo detectado: manobra evasiva de giro sobre o eixo
-  Critical,  // Proximidade crítica: parada e marcha a ré de segurança
-};
+constexpr uint8_t state_free = 0;      // Pista desobstruída: deslocamento retilíneo para frente
+constexpr uint8_t state_turn = 1;      // Obstáculo detectado: manobra evasiva de giro sobre o eixo
+constexpr uint8_t state_critical = 2;  // Proximidade crítica: parada e marcha a ré de segurança
 
 // Variáveis de estado global do sistema
-auto current_state = NavigationState::Free;
-float current_distance_cm = max_valid_distance_cm;
-unsigned long last_telemetry_ms = 0;
-unsigned long last_sampling_ms = 0;
+static uint8_t current_state = state_free;
+static float current_distance_cm = max_valid_distance_cm;
+static unsigned long last_telemetry_ms = 0;
+static unsigned long last_sampling_ms = 0;
 
 // Emite o pulso no pino Trigger, afere o tempo de voo no pino Echo e calcula a distância linear
-float read_ultrasonic_distance_cm() {
+static float read_ultrasonic_distance_cm() {
   digitalWrite(pin_ultrasonic_trigger, LOW);
   delayMicroseconds(2);
   digitalWrite(pin_ultrasonic_trigger, HIGH);
@@ -97,24 +94,24 @@ float read_ultrasonic_distance_cm() {
 }
 
 // Avalia se o trajeto à frente está desobstruído para progressão retilínea
-bool is_path_clear(const float distance_cm) { return distance_cm >= distance_safe_threshold_cm; }
+static bool is_path_clear(const float distance_cm) { return distance_cm >= distance_safe_threshold_cm; }
 
 // Avalia se a proximidade do obstáculo demanda parada emergencial e manobra de ré
-bool is_obstacle_critical(const float distance_cm) { return distance_cm < distance_critical_threshold_cm; }
+static bool is_obstacle_critical(const float distance_cm) { return distance_cm < distance_critical_threshold_cm; }
 
 // Determina o estado operacional da máquina de estados com base na distância linear medida
-NavigationState determine_navigation_state(const float distance_cm) {
+static uint8_t determine_navigation_state(const float distance_cm) {
   if (is_obstacle_critical(distance_cm)) {
-    return NavigationState::Critical;
+    return state_critical;
   }
   if (is_path_clear(distance_cm)) {
-    return NavigationState::Free;
+    return state_free;
   }
-  return NavigationState::Turn;
+  return state_turn;
 }
 
 // Desativa todos os canais de excitação da ponte H L293D
-void stop_drive_motors() {
+static void stop_drive_motors() {
   digitalWrite(pin_motor_left_forward, LOW);
   digitalWrite(pin_motor_left_backward, LOW);
   digitalWrite(pin_motor_right_forward, LOW);
@@ -122,9 +119,9 @@ void stop_drive_motors() {
 }
 
 // Aplica os níveis lógicos da ponte H para acionamento diferencial dos motores
-void control_drive_motors(const NavigationState state) {
+static void control_drive_motors(const uint8_t state) {
   switch (state) {
-    case NavigationState::Free:
+    case state_free:
       // Avanço em linha reta: ambos os motores tracionam para frente
       digitalWrite(pin_motor_left_forward, HIGH);
       digitalWrite(pin_motor_left_backward, LOW);
@@ -132,7 +129,7 @@ void control_drive_motors(const NavigationState state) {
       digitalWrite(pin_motor_right_backward, LOW);
       break;
 
-    case NavigationState::Turn:
+    case state_turn:
       // Manobra evasiva: giro diferencial sobre o eixo (esquerda reverte, direita avança)
       digitalWrite(pin_motor_left_forward, LOW);
       digitalWrite(pin_motor_left_backward, HIGH);
@@ -140,41 +137,51 @@ void control_drive_motors(const NavigationState state) {
       digitalWrite(pin_motor_right_backward, LOW);
       break;
 
-    case NavigationState::Critical:
+    case state_critical:
       // Marcha a ré de segurança: ambos os motores tracionam em sentido reverso
       digitalWrite(pin_motor_left_forward, LOW);
       digitalWrite(pin_motor_left_backward, HIGH);
       digitalWrite(pin_motor_right_forward, LOW);
       digitalWrite(pin_motor_right_backward, HIGH);
       break;
+
+    default:
+      stop_drive_motors();
+      break;
   }
 }
 
 // Atualização das saídas digitais dos LEDs de sinalização visual
-void update_visual_signaling(const NavigationState state) {
+static void update_visual_signaling(const uint8_t state) {
   switch (state) {
-    case NavigationState::Free:
+    case state_free:
       digitalWrite(pin_led_free, HIGH);
       digitalWrite(pin_led_turning, LOW);
       digitalWrite(pin_led_critical, LOW);
       break;
 
-    case NavigationState::Turn:
+    case state_turn:
       digitalWrite(pin_led_free, LOW);
       digitalWrite(pin_led_turning, HIGH);
       digitalWrite(pin_led_critical, LOW);
       break;
 
-    case NavigationState::Critical:
+    case state_critical:
       digitalWrite(pin_led_free, LOW);
       digitalWrite(pin_led_turning, LOW);
       digitalWrite(pin_led_critical, HIGH);
+      break;
+
+    default:
+      digitalWrite(pin_led_free, LOW);
+      digitalWrite(pin_led_turning, LOW);
+      digitalWrite(pin_led_critical, LOW);
       break;
   }
 }
 
 // Acionamento do buzzer piezoelétrico para emissão de alerta sonoro
-void control_acoustic_alarm(const bool activate) {
+static void control_acoustic_alarm(const bool activate) {
   if (activate) {
     tone(pin_buzzer, buzzer_alarm_frequency_hz);
     return;
@@ -183,46 +190,49 @@ void control_acoustic_alarm(const bool activate) {
 }
 
 // Retorna a descrição textual do estado de navegação para a telemetria serial
-const __FlashStringHelper* get_navigation_state_label(const NavigationState state) {
+static const __FlashStringHelper* get_navigation_state_label(const uint8_t state) {
   switch (state) {
-    case NavigationState::Free:
-      return F("VIA LIVRE (AVANCANDO)");
-    case NavigationState::Turn:
-      return F("OBSTACULO DETECTADO (DESVIO / GIRO)");
-    case NavigationState::Critical:
-      return F("PROXIMIDADE CRITICA (MARCHA A RE)");
+    case state_free:
+      return F("VIA LIVRE (AVANÇANDO)");
+    case state_turn:
+      return F("OBSTÁCULO DETECTADO (DESVIO / GIRO)");
+    case state_critical:
+      return F("PROXIMIDADE CRÍTICA (MARCHA A RÉ)");
+    default:
+      break;
   }
   return F("INDEFINIDO");
 }
 
 // Retorna a descrição textual do acionamento dos motores para a telemetria serial
-const __FlashStringHelper* get_motor_action_label(const NavigationState state) {
+static const __FlashStringHelper* get_motor_action_label(const uint8_t state) {
   switch (state) {
-    case NavigationState::Free:
+    case state_free:
       return F("FRENTE / FRENTE");
-    case NavigationState::Turn:
-      return F("RE / FRENTE");
-    case NavigationState::Critical:
-      return F("RE / RE");
+    case state_turn:
+      return F("MARCHA A RÉ / FRENTE");
+    case state_critical:
+      return F("MARCHA A RÉ / MARCHA A RÉ");
+    default:
+      break;
   }
   return F("PARADO");
 }
 
 // Transmissão periódica das informações do veículo pela porta serial
-void transmit_telemetry(const float distance_cm, const NavigationState state) {
-  Serial.print(F("[TELEMETRIA] Distancia: "));
-  Serial.print(distance_cm, telemetry_decimals);
+static void transmit_telemetry() {
+  Serial.print(F("[TELEMETRIA] Distância: "));
+  Serial.print(current_distance_cm, telemetry_decimals);
   Serial.print(F(" cm | Estado: "));
-  Serial.print(get_navigation_state_label(state));
+  Serial.print(get_navigation_state_label(current_state));
   Serial.print(F(" | Motores: "));
-  Serial.println(get_motor_action_label(state));
+  Serial.println(get_motor_action_label(current_state));
 }
-}  // namespace
 
 void setup() {
   Serial.begin(serial_baud_rate);
   Serial.println(F("=================================================="));
-  Serial.println(F(" CARRO ROBOTICO AUTONOMO - ARDUINO UNO            "));
+  Serial.println(F(" CARRO ROBÔTICO AUTÔNOMO - ARDUINO UNO            "));
   Serial.println(F(" Status: Inicializado com Sucesso                 "));
   Serial.println(F("=================================================="));
 
@@ -249,7 +259,7 @@ void setup() {
 
   control_drive_motors(current_state);
   update_visual_signaling(current_state);
-  control_acoustic_alarm(current_state == NavigationState::Critical);
+  control_acoustic_alarm(current_state == state_critical);
 }
 
 void loop() {
@@ -265,12 +275,12 @@ void loop() {
     // Atualização imediata dos motores, LEDs e alarme sonoro
     control_drive_motors(current_state);
     update_visual_signaling(current_state);
-    control_acoustic_alarm(current_state == NavigationState::Critical);
+    control_acoustic_alarm(current_state == state_critical);
   }
 
   // Transmissão periódica da telemetria serial a cada 1 segundo (1000 ms)
   if (current_ms - last_telemetry_ms >= telemetry_interval_ms) {
     last_telemetry_ms = current_ms;
-    transmit_telemetry(current_distance_cm, current_state);
+    transmit_telemetry();
   }
 }
