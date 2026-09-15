@@ -28,16 +28,16 @@
 
 namespace {
 // Mapeamento de pinos do hardware
-constexpr uint8_t pin_ultrasonic_trig = 2;       // Saída digital: disparo do sensor ultrassônico (Trigger)
+constexpr uint8_t pin_ultrasonic_trigger = 2;    // Disparo do sensor ultrassônico (Trigger)
 constexpr uint8_t pin_ultrasonic_echo = 3;       // Entrada digital: eco do sensor ultrassônico (Echo)
-constexpr uint8_t pin_motor_left_forward = 4;    // Saída digital: motor esquerdo para frente (L293D IN1)
-constexpr uint8_t pin_motor_left_backward = 5;   // Saída digital: motor esquerdo para trás (L293D IN2)
-constexpr uint8_t pin_motor_right_forward = 6;   // Saída digital: motor direito para frente (L293D IN3)
-constexpr uint8_t pin_motor_right_backward = 7;  // Saída digital: motor direito para trás (L293D IN4)
-constexpr uint8_t pin_led_free = 8;              // Saída digital: LED verde (via livre / avanço)
-constexpr uint8_t pin_led_turning = 9;           // Saída digital: LED amarelo (manobra de desvio)
-constexpr uint8_t pin_led_critical = 10;         // Saída digital: LED vermelho (obstáculo crítico / ré)
-constexpr uint8_t pin_buzzer = 11;               // Saída digital: buzzer piezoelétrico de alerta
+constexpr uint8_t pin_motor_left_forward = 4;    // Motor esquerdo para frente (L293D IN1)
+constexpr uint8_t pin_motor_left_backward = 5;   // Motor esquerdo para trás (L293D IN2)
+constexpr uint8_t pin_motor_right_backward = 6;  // Motor direito para trás (L293D IN3 - compensação do chassi)
+constexpr uint8_t pin_motor_right_forward = 7;   // motor direito para frente (L293D IN4 - compensação do chassi)
+constexpr uint8_t pin_led_free = 8;              // LED verde (via livre / avanço)
+constexpr uint8_t pin_led_turning = 9;           // LED amarelo (manobra de desvio)
+constexpr uint8_t pin_led_critical = 10;         // LED vermelho (obstáculo crítico / ré)
+constexpr uint8_t pin_buzzer = 11;               // Buzzer piezoelétrico de alerta
 
 // Parâmetros físicos de propagação acústica e limites do sensor HC-SR04
 constexpr unsigned long ultrasonic_timeout_us = 25000;  // Timeout de 25 ms (~4.2 metros máximo)
@@ -71,11 +71,11 @@ unsigned long last_sampling_ms = 0;
 
 // Emite o pulso no pino Trigger, afere o tempo de voo no pino Echo e calcula a distância linear
 float read_ultrasonic_distance_cm() {
-  digitalWrite(pin_ultrasonic_trig, LOW);
+  digitalWrite(pin_ultrasonic_trigger, LOW);
   delayMicroseconds(2);
-  digitalWrite(pin_ultrasonic_trig, HIGH);
+  digitalWrite(pin_ultrasonic_trigger, HIGH);
   delayMicroseconds(10);
-  digitalWrite(pin_ultrasonic_trig, LOW);
+  digitalWrite(pin_ultrasonic_trigger, LOW);
 
   const unsigned long echo_duration_us = pulseIn(pin_ultrasonic_echo, HIGH, ultrasonic_timeout_us);
 
@@ -226,7 +226,7 @@ void setup() {
   Serial.println(F(" Status: Inicializado com Sucesso                 "));
   Serial.println(F("=================================================="));
 
-  pinMode(pin_ultrasonic_trig, OUTPUT);
+  pinMode(pin_ultrasonic_trigger, OUTPUT);
   pinMode(pin_ultrasonic_echo, INPUT);
 
   pinMode(pin_motor_left_forward, OUTPUT);
