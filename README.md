@@ -63,18 +63,18 @@ O chassi de tração diferencial controla a direção do carro alternando os sen
 
 O circuito foi desenvolvido para o **Arduino Uno R3**, com alocação contígua e organizada dos pinos de controle de `D2` a `D11`:
 
-| Componente                     | Pino Arduino | Tipo de I/O     | Função no Sistema                                        | Montagem Tinkercad                      |
-|:-------------------------------|:-------------|:----------------|:---------------------------------------------------------|:----------------------------------------|
-| **Sensor Ultrassônico (Trig)** | `D2`         | Saída Digital   | Disparo do trem de pulsos de 10 µs                       | Terminal Trigger do HC-SR04             |
-| **Sensor Ultrassônico (Echo)** | `D3`         | Entrada Digital | Recepção do tempo de retorno do eco                      | Terminal Echo do HC-SR04                |
-| **Ponte H L293D (IN1)**        | `D4`         | Saída Digital   | Motor Esquerdo - Polaridade Direta                       | Pino 2 do CI L293D (Entrada 1)          |
-| **Ponte H L293D (IN2)**        | `D5`         | Saída Digital   | Motor Esquerdo - Polaridade Reversa                      | Pino 7 do CI L293D (Entrada 2)          |
-| **Ponte H L293D (IN3)**        | `D6`         | Saída Digital   | Motor Direito - Polaridade Direta                        | Pino 10 do CI L293D (Entrada 3)         |
-| **Ponte H L293D (IN4)**        | `D7`         | Saída Digital   | Motor Direito - Polaridade Reversa                       | Pino 15 do CI L293D (Entrada 4)         |
-| **LED Verde**                  | `D8`         | Saída Digital   | Indicação de Via Livre ($d \ge 30\text{ cm}$)            | Resistor limitador de 220 Ω no ânodo    |
-| **LED Amarelo**                | `D9`         | Saída Digital   | Indicação de Manobra Evasiva ($15 \le d < 30\text{ cm}$) | Resistor limitador de 220 Ω no ânodo    |
-| **LED Vermelho**               | `D10`        | Saída Digital   | Indicação de Proximidade Crítica ($d < 15\text{ cm}$)    | Resistor limitador de 220 Ω no ânodo    |
-| **Buzzer Piezoelétrico**       | `D11`        | Saída Digital   | Sinal sonoro de alerta e manobra de ré                   | Terminal positivo no D11; GND no cátodo |
+| Componente                        | Pino Arduino | Tipo de I/O     | Função no Sistema                                        | Montagem Tinkercad                      |
+|:----------------------------------|:-------------|:----------------|:---------------------------------------------------------|:----------------------------------------|
+| **Sensor Ultrassônico (Trigger)** | `D2`         | Saída Digital   | Disparo do trem de pulsos de 10 µs                       | Terminal Trigger do HC-SR04             |
+| **Sensor Ultrassônico (Echo)**    | `D3`         | Entrada Digital | Recepção do tempo de retorno do eco                      | Terminal Echo do HC-SR04                |
+| **Ponte H L293D (IN1)**           | `D4`         | Saída Digital   | Motor Esquerdo - Polaridade Direta                       | Pino 2 do CI L293D (Entrada 1)          |
+| **Ponte H L293D (IN2)**           | `D5`         | Saída Digital   | Motor Esquerdo - Polaridade Reversa                      | Pino 7 do CI L293D (Entrada 2)          |
+| **Ponte H L293D (IN3)**           | `D6`         | Saída Digital   | Motor Direito - Polaridade Reversa (Compensação chassi)  | Pino 10 do CI L293D (Entrada 3)         |
+| **Ponte H L293D (IN4)**           | `D7`         | Saída Digital   | Motor Direito - Polaridade Direta (Compensação chassi)   | Pino 15 do CI L293D (Entrada 4)         |
+| **LED Verde**                     | `D8`         | Saída Digital   | Indicação de Via Livre ($d \ge 30\text{ cm}$)            | Resistor limitador de 220 Ω no ânodo    |
+| **LED Amarelo**                   | `D9`         | Saída Digital   | Indicação de Manobra Evasiva ($15 \le d < 30\text{ cm}$) | Resistor limitador de 220 Ω no ânodo    |
+| **LED Vermelho**                  | `D10`        | Saída Digital   | Indicação de Proximidade Crítica ($d < 15\text{ cm}$)    | Resistor limitador de 220 Ω no ânodo    |
+| **Buzzer Piezoelétrico**          | `D11`        | Saída Digital   | Sinal sonoro de alerta e manobra de ré                   | Terminal positivo no D11; GND no cátodo |
 
 ### 4.1 Alimentação e Conexão da Ponte H (L293D)
 
